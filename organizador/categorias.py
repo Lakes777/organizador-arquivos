@@ -11,7 +11,8 @@ CATEGORIAS: dict[str, set[str]] = {
     "Músicas": {".mp3", ".wav", ".flac", ".ogg", ".m4a"},
     "Compactados": {".zip", ".rar", ".7z", ".tar", ".gz"},
     "Instaladores": {".exe", ".msi", ".deb", ".appimage"},
-    "Código": {".py", ".js", ".html", ".css", ".json", ".sh"},
+    "Código": {".py", ".java", ".js", ".html", ".css", ".json", ".sql", ".sh"},
+    "Diagramas": {".drawio", ".bpm"},
 }
 
 OUTROS = "Outros"

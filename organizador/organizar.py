@@ -5,6 +5,10 @@ from pathlib import Path
 
 from organizador.categorias import categoria_de
 
+# Arquivos de sistema do Windows: mover o desktop.ini, por exemplo, faz a pasta
+# perder o nome e o ícone no Explorer
+IGNORADOS = {"desktop.ini", "thumbs.db"}
+
 
 @dataclass
 class Movimento:
@@ -16,11 +20,14 @@ def planejar(pasta: Path) -> list[Movimento]:
     """Lista o que seria movido, sem mexer em nada.
 
     Só olha os arquivos que estão direto na pasta: subpastas (inclusive as
-    que o próprio organizador criou) e arquivos ocultos ficam onde estão.
+    que o próprio organizador criou), arquivos ocultos e arquivos de sistema
+    ficam onde estão.
     """
     movimentos = []
     for item in sorted(pasta.iterdir()):
         if not item.is_file() or item.name.startswith("."):
+            continue
+        if item.name.lower() in IGNORADOS:
             continue
         destino = pasta / categoria_de(item) / item.name
         movimentos.append(Movimento(origem=item, destino=destino))
