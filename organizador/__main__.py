@@ -14,18 +14,25 @@ def pasta_existente(texto: str) -> Path:
     return pasta
 
 
+def descrever(movimento: Movimento) -> str:
+    """Ex.: 'foto.jpg  ->  Imagens/' ou 'print.png  ->  Imagens/print (1).png'."""
+    destino = f"{movimento.subpasta}/"
+    if movimento.renomeado:
+        destino += movimento.destino.name
+    return f"{movimento.origem.name}  ->  {destino}"
+
+
+def contar_renomeados(movimentos: list[Movimento]) -> str:
+    renomeados = sum(m.renomeado for m in movimentos)
+    return f" ({renomeados} renomeado(s) por já existir um arquivo com o mesmo nome)" if renomeados else ""
+
+
 def simular(movimentos: list[Movimento]) -> None:
     """Mostra o plano sem mover nada."""
     print("MODO SIMULAÇÃO: nenhum arquivo será movido.\n")
-    pulariam = 0
     for movimento in movimentos:
-        if movimento.destino.exists():
-            pulariam += 1
-            print(f"PULARIA: {movimento.origem.name} (já existe em {movimento.subpasta}/)")
-        else:
-            print(f"{movimento.origem.name}  ->  {movimento.subpasta}/")
-    moveria = len(movimentos) - pulariam
-    print(f"\n{moveria} arquivo(s) seria(m) movido(s), {pulariam} pulado(s).")
+        print(descrever(movimento))
+    print(f"\n{len(movimentos)} arquivo(s) seria(m) movido(s){contar_renomeados(movimentos)}.")
     print("Para organizar de verdade, rode o mesmo comando sem --simular.")
 
 
@@ -60,11 +67,12 @@ def main() -> None:
 
     movidos, pulados = executar(movimentos)
     for movimento in movidos:
-        print(f"{movimento.origem.name}  ->  {movimento.subpasta}/")
+        print(descrever(movimento))
     for movimento in pulados:
-        print(f"PULADO: {movimento.origem.name} (já existe em {movimento.subpasta}/)")
-    print(f"\n{len(movidos)} arquivo(s) movido(s), {len(pulados)} pulado(s).")
-
+        print(f"PULADO: {movimento.origem.name} (surgiu um arquivo com o mesmo nome em {movimento.subpasta}/)")
+    print(f"\n{len(movidos)} arquivo(s) movido(s){contar_renomeados(movidos)}.")
+    if pulados:
+        print(f"{len(pulados)} pulado(s). Rode de novo para organizá-los.")
 
 if __name__ == "__main__":
     main()

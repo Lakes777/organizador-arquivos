@@ -21,6 +21,10 @@ class Movimento:
         """Caminho da pasta de destino relativo à pasta organizada. Ex.: '2026/09'."""
         return self.destino.parent.relative_to(self.origem.parent).as_posix()
 
+    @property
+    def renomeado(self) -> bool:
+        return self.destino.name != self.origem.name
+
 
 def subpasta_de(arquivo: Path, por: str) -> Path:
     """Decide a subpasta: pelo tipo ('Imagens') ou pela data ('2026/09').
@@ -32,6 +36,19 @@ def subpasta_de(arquivo: Path, por: str) -> Path:
         modificado = datetime.fromtimestamp(arquivo.stat().st_mtime)
         return Path(f"{modificado:%Y}") / f"{modificado:%m}"
     return Path(categoria_de(arquivo))
+
+
+def nome_livre(destino: Path) -> Path:
+    """Se o nome já existe, acrescenta um número, como o Windows faz.
+
+    Ex.: 'print.png' -> 'print (1).png' -> 'print (2).png' ...
+    """
+    candidato = destino
+    contador = 1
+    while candidato.exists():
+        candidato = destino.with_name(f"{destino.stem} ({contador}){destino.suffix}")
+        contador += 1
+    return candidato
 
 
 def planejar(pasta: Path, por: str = "tipo") -> list[Movimento]:
@@ -47,7 +64,7 @@ def planejar(pasta: Path, por: str = "tipo") -> list[Movimento]:
             continue
         if item.name.lower() in IGNORADOS:
             continue
-        destino = pasta / subpasta_de(item, por) / item.name
+        destino = nome_livre(pasta / subpasta_de(item, por) / item.name)
         movimentos.append(Movimento(origem=item, destino=destino))
     return movimentos
 
@@ -55,8 +72,9 @@ def planejar(pasta: Path, por: str = "tipo") -> list[Movimento]:
 def executar(movimentos: list[Movimento]) -> tuple[list[Movimento], list[Movimento]]:
     """Move os arquivos. Retorna (movidos, pulados).
 
-    Se já existir um arquivo com o mesmo nome no destino, ele é pulado:
-    no Linux, mover por cima de um arquivo apaga o antigo sem avisar.
+    O planejar() já escolhe nomes livres, mas um arquivo pode surgir no
+    destino entre o plano e a execução. Nesse caso ele é pulado: no Linux,
+    mover por cima de um arquivo apaga o antigo sem avisar.
     """
     movidos, pulados = [], []
     for movimento in movimentos:
