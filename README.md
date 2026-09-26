@@ -1,4 +1,4 @@
-# 🗂️ Organizador de Arquivos
+# Organizador de Arquivos
 
 [![Testes](https://github.com/Lakes777/organizador-arquivos/actions/workflows/testes.yml/badge.svg)](https://github.com/Lakes777/organizador-arquivos/actions/workflows/testes.yml)
 
