@@ -131,3 +131,69 @@ def test_historico_corrompido_impede_organizar(tmp_path, monkeypatch):
     assert "Erro no histórico" in str(erro.value.code)
     assert (tmp_path / "foto.jpg").exists()
     assert not (tmp_path / "Imagens").exists()
+
+
+def test_duplicados_simular_nao_move_nada(tmp_path, monkeypatch, capsys):
+    (tmp_path / "foto.jpg").write_bytes(b"a" * 2048)
+    (tmp_path / "Imagens").mkdir()
+    (tmp_path / "Imagens" / "foto (1).jpg").write_bytes(b"a" * 2048)
+
+    rodar(monkeypatch, str(tmp_path), "--duplicados", "--simular")
+
+    saida = capsys.readouterr().out
+    assert "MODO SIMULAÇÃO" in saida
+    assert "fica:   foto.jpg" in saida
+    assert "cópia:  Imagens/foto (1).jpg" in saida
+    assert "Espaço que seria liberado: 2,0 KB" in saida
+    assert (tmp_path / "Imagens" / "foto (1).jpg").exists()
+    assert not (tmp_path / "Duplicados").exists()
+
+
+def test_duplicados_de_verdade(tmp_path, monkeypatch, capsys):
+    (tmp_path / "foto.jpg").write_text("igual")
+    (tmp_path / "foto (1).jpg").write_text("igual")
+
+    rodar(monkeypatch, str(tmp_path), "--duplicados")
+
+    saida = capsys.readouterr().out
+    assert "foto (1).jpg  ->  Duplicados/foto (1).jpg" in saida
+    assert "1 cópia(s) movida(s)" in saida
+    assert "apague-a" in saida
+    assert (tmp_path / "foto.jpg").exists()
+    assert (tmp_path / "Duplicados" / "foto (1).jpg").read_text() == "igual"
+
+
+def test_sem_duplicados(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.txt").write_text("um")
+    (tmp_path / "b.txt").write_text("outro")
+
+    rodar(monkeypatch, str(tmp_path), "--duplicados")
+
+    assert "Nenhum arquivo duplicado." in capsys.readouterr().out
+
+
+def test_duplicados_recusa_por(tmp_path, monkeypatch, capsys):
+    with pytest.raises(SystemExit):
+        rodar(monkeypatch, str(tmp_path), "--duplicados", "--por", "data")
+
+    assert "--duplicados não combina com --por" in capsys.readouterr().err
+
+
+def test_desfazer_devolve_os_duplicados_separados(tmp_path, monkeypatch, capsys):
+    (tmp_path / "foto.jpg").write_bytes(b"a" * 2048)
+    (tmp_path / "foto (1).jpg").write_bytes(b"a" * 2048)
+
+    rodar(monkeypatch, str(tmp_path), "--duplicados")
+    assert "Para desfazer" in capsys.readouterr().out
+    assert not (tmp_path / "foto (1).jpg").exists()
+
+    rodar(monkeypatch, str(tmp_path), "--desfazer")
+    assert (tmp_path / "foto (1).jpg").exists()
+    assert not (tmp_path / "Duplicados").exists()  # a pasta criada ficou vazia e saiu
+
+
+def test_desfazer_recusa_duplicados_junto(tmp_path, monkeypatch, capsys):
+    with pytest.raises(SystemExit):
+        rodar(monkeypatch, str(tmp_path), "--desfazer", "--duplicados")
+
+    assert "use --desfazer sozinho" in capsys.readouterr().err
