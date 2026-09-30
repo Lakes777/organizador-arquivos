@@ -1,5 +1,6 @@
 import argparse
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -197,3 +198,44 @@ def test_desfazer_recusa_duplicados_junto(tmp_path, monkeypatch, capsys):
         rodar(monkeypatch, str(tmp_path), "--desfazer", "--duplicados")
 
     assert "use --desfazer sozinho" in capsys.readouterr().err
+
+
+def test_arquivo_em_uso_nao_impede_desfazer_os_outros(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.jpg").touch()
+    (tmp_path / "b.pdf").touch()
+    rename_original = Path.rename
+
+    def rename_falhando(self, destino):
+        if self.name == "b.pdf":
+            raise PermissionError(13, "Permission denied")
+        return rename_original(self, destino)
+
+    monkeypatch.setattr(Path, "rename", rename_falhando)
+    rodar(monkeypatch, str(tmp_path))
+    saida = capsys.readouterr().out
+    assert "PULADO: b.pdf (não foi possível mover: Permission denied" in saida
+    assert "Para desfazer" in saida
+
+    monkeypatch.setattr(Path, "rename", rename_original)
+    rodar(monkeypatch, str(tmp_path), "--desfazer")
+    assert (tmp_path / "a.jpg").exists() and not (tmp_path / "Imagens").exists()
+
+
+def test_desfazer_pula_arquivo_em_uso(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.jpg").touch()
+    (tmp_path / "b.pdf").touch()
+    rodar(monkeypatch, str(tmp_path))
+    rename_original = Path.rename
+
+    def rename_falhando(self, destino):
+        if self.name == "b.pdf":
+            raise PermissionError(13, "Permission denied")
+        return rename_original(self, destino)
+
+    monkeypatch.setattr(Path, "rename", rename_falhando)
+    capsys.readouterr()
+    rodar(monkeypatch, str(tmp_path), "--desfazer")
+
+    saida = capsys.readouterr().out
+    assert "PULADO: Documentos/b.pdf (não foi possível mover" in saida
+    assert (tmp_path / "a.jpg").exists() and (tmp_path / "Documentos" / "b.pdf").exists()

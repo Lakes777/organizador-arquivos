@@ -96,3 +96,22 @@ def test_executar_pula_arquivo_que_surgiu_depois_do_plano(tmp_path):
     assert movidos == [] and len(pulados) == 1
     assert (tmp_path / "Imagens" / "print.png").read_text() == "chegou depois"
     assert (tmp_path / "print.png").read_text() == "nova"
+
+
+def test_arquivo_que_nao_move_e_pulado_e_os_outros_continuam(tmp_path, monkeypatch):
+    criar(tmp_path / "a.jpg")
+    criar(tmp_path / "b.pdf")
+    criar(tmp_path / "c.txt")
+    rename_original = Path.rename
+
+    def rename_falhando(self, destino):
+        if self.name == "b.pdf":  # como um PDF aberto no leitor, no Windows
+            raise PermissionError(13, "Permission denied")
+        return rename_original(self, destino)
+
+    monkeypatch.setattr(Path, "rename", rename_falhando)
+    movidos, pulados = executar(planejar(tmp_path))
+
+    assert [m.origem.name for m in movidos] == ["a.jpg", "c.txt"]
+    assert [(m.origem.name, m.erro) for m in pulados] == [("b.pdf", "Permission denied")]
+    assert (tmp_path / "b.pdf").exists()

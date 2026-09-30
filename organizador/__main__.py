@@ -58,10 +58,16 @@ def mover_e_registrar(
     movidos, pulados = executar(movimentos)
     try:
         historico.registrar(pasta, movidos, pastas_criadas)
-    except OSError as erro:  # ex.: pasta sem permissão de escrita
+    except (OSError, historico.HistoricoInvalido) as erro:  # ex.: pasta sem permissão de escrita
         aviso = f"AVISO: não foi possível gravar o histórico ({erro}); esta mudança não poderá ser desfeita."
         return movidos, pulados, aviso
     return movidos, pulados, None
+
+
+def motivo_do_pulo(movimento: Movimento, onde: str) -> str:
+    if movimento.erro:
+        return f"não foi possível mover: {movimento.erro}; está aberto em outro programa?"
+    return f"surgiu um arquivo com o mesmo nome em {onde}"
 
 
 def dica_de_desfazer(pasta: Path, movidos: list[Movimento], aviso: str | None) -> None:
@@ -143,7 +149,7 @@ def separar_duplicados(pasta: Path, simular_apenas: bool) -> None:
     for movimento in movidos:
         print(f"{movimento.origem.relative_to(pasta).as_posix()}  ->  {movimento.destino.relative_to(pasta).as_posix()}")
     for movimento in pulados:
-        print(f"PULADO: {movimento.origem.relative_to(pasta).as_posix()} (surgiu um arquivo com o mesmo nome no destino)")
+        print(f"PULADO: {movimento.origem.relative_to(pasta).as_posix()} ({motivo_do_pulo(movimento, 'o destino')})")
     liberado = sum(tamanhos[m.origem] for m in movidos)
     print(f"\n{len(movidos)} cópia(s) movida(s) para {PASTA_DUPLICADOS}/ ({tamanho_legivel(liberado)}).")
     if pulados:
@@ -216,7 +222,7 @@ def main() -> None:
     for movimento in movidos:
         print(descrever(movimento))
     for movimento in pulados:
-        print(f"PULADO: {movimento.origem.name} (surgiu um arquivo com o mesmo nome em {movimento.subpasta}/)")
+        print(f"PULADO: {movimento.origem.name} ({motivo_do_pulo(movimento, movimento.subpasta + '/')})")
     print(f"\n{len(movidos)} arquivo(s) movido(s){contar_renomeados(movidos)}.")
     if pulados:
         print(f"{len(pulados)} pulado(s). Rode de novo para organizá-los.")

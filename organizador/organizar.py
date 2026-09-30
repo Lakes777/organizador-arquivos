@@ -15,6 +15,7 @@ IGNORADOS = {"desktop.ini", "thumbs.db"}
 class Movimento:
     origem: Path
     destino: Path
+    erro: str | None = None  # preenchido se o sistema recusou mover (ex.: arquivo em uso)
 
     @property
     def subpasta(self) -> str:
@@ -75,13 +76,23 @@ def executar(movimentos: list[Movimento]) -> tuple[list[Movimento], list[Movimen
     O planejar() já escolhe nomes livres, mas um arquivo pode surgir no
     destino entre o plano e a execução. Nesse caso ele é pulado: no Linux,
     mover por cima de um arquivo apaga o antigo sem avisar.
+
+    Se o sistema recusar mover um arquivo (aberto em outro programa no
+    Windows, sem permissão), ele também é pulado, com o motivo em .erro, e
+    os outros continuam: parar no meio deixaria os já movidos sem registro
+    no histórico, e o desfazer não conseguiria devolvê-los.
     """
     movidos, pulados = [], []
     for movimento in movimentos:
         if movimento.destino.exists():
             pulados.append(movimento)
             continue
-        movimento.destino.parent.mkdir(parents=True, exist_ok=True)
-        movimento.origem.rename(movimento.destino)
+        try:
+            movimento.destino.parent.mkdir(parents=True, exist_ok=True)
+            movimento.origem.rename(movimento.destino)
+        except OSError as erro:
+            movimento.erro = erro.strerror or str(erro)
+            pulados.append(movimento)
+            continue
         movidos.append(movimento)
     return movidos, pulados

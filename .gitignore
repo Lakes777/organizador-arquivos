@@ -5,3 +5,6 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Worktrees e configurações locais do Claude Code
+.claude/

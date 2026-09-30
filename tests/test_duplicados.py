@@ -167,9 +167,55 @@ def test_segunda_rodada_ignora_a_pasta_duplicados(tmp_path):
 
 def test_so_a_pasta_duplicados_da_raiz_e_ignorada(tmp_path):
     criar(tmp_path / "foto.jpg", "igual")
-    criar(tmp_path / "Projetos" / "Duplicados" / "foto.jpg", "igual")
+    criar(tmp_path / "Imagens" / "Duplicados" / "foto.jpg", "igual")
 
     assert len(encontrar_duplicados(tmp_path)) == 1
+
+
+def test_duplicados_em_minusculas_tambem_e_ignorada(tmp_path):
+    # no Windows, "duplicados" e "Duplicados" são a mesma pasta
+    criar(tmp_path / "foto.jpg", "igual")
+    criar(tmp_path / "duplicados" / "foto.jpg", "igual")
+
+    assert encontrar_duplicados(tmp_path) == []
+
+
+def test_nao_entra_em_pastas_do_usuario(tmp_path):
+    # um jogo extraído de um .zip tem arquivos repetidos de propósito
+    criar(tmp_path / "MeuJogo" / "lib.dll", "igual")
+    criar(tmp_path / "MeuJogo" / "plugins" / "lib.dll", "igual")
+    criar(tmp_path / "LICENSE.txt", "mit")
+    criar(tmp_path / "MeuJogo" / "LICENSE.txt", "mit")
+
+    assert encontrar_duplicados(tmp_path) == []
+
+
+def test_entra_nas_pastas_do_organizador(tmp_path):
+    criar(tmp_path / "foto.jpg", "igual")
+    criar(tmp_path / "outros" / "a.bin", "igual")  # maiúsculas não importam
+    criar(tmp_path / "2026" / "09" / "b.bin", "igual")  # --por data
+
+    [grupo] = encontrar_duplicados(tmp_path)
+
+    assert len(grupo.copias) == 2
+
+
+def test_pasta_que_nao_abre_fica_de_fora(tmp_path, monkeypatch):
+    criar(tmp_path / "a.txt", "igual")
+    criar(tmp_path / "a (1).txt", "igual")
+    criar(tmp_path / "Imagens" / "x.jpg", "x")
+    iterdir_original = Path.iterdir
+
+    def iterdir_falhando(self):
+        if self.name == "Imagens":
+            raise PermissionError("sem permissão")
+        return iterdir_original(self)
+
+    monkeypatch.setattr(Path, "iterdir", iterdir_falhando)
+    ilegiveis = []
+
+    assert len(encontrar_duplicados(tmp_path, ilegiveis)) == 1
+    assert ilegiveis == [tmp_path / "Imagens"]
 
 
 def test_arquivos_maiores_que_um_pedaco(tmp_path):

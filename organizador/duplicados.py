@@ -9,9 +9,17 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
+from organizador.categorias import CATEGORIAS, OUTROS
 from organizador.organizar import IGNORADOS, Movimento, nome_livre
 
 PASTA_DUPLICADOS = "Duplicados"
+
+# Subpastas da raiz em que a busca entra: as que o próprio organizador cria
+# (Imagens/, Outros/... e 2026/ no --por data). Uma pasta qualquer, como um
+# jogo ou projeto extraído de um .zip, pode ter arquivos repetidos de
+# propósito (DLLs, LICENSE), e tirar um deles quebraria o programa.
+PASTAS_DO_ORGANIZADOR = {nome.lower() for nome in [*CATEGORIAS, OUTROS]}
+ANO = re.compile(r"^\d{4}$")
 
 # Lê 1 MiB por vez: um vídeo de 4 GB não precisa caber inteiro na memória
 TAMANHO_DO_PEDACO = 1024 * 1024
@@ -51,22 +59,41 @@ def tamanho_legivel(tamanho: int) -> str:
     return f"{valor:.1f} {unidade}".replace(".", ",")
 
 
-def listar_arquivos(pasta: Path, raiz: Path | None = None) -> list[Path]:
-    """Todos os arquivos da pasta e das subpastas, menos os que não devem entrar.
+def entra_na_busca(subpasta_da_raiz: Path) -> bool:
+    """Imagens/, Outros/, 2026/... sim; Duplicados/ e pastas do usuário, não.
+
+    Sem diferenciar maiúsculas: no Windows, 'duplicados' e 'Duplicados' são a
+    mesma pasta.
+    """
+    nome = subpasta_da_raiz.name
+    return nome.lower() in PASTAS_DO_ORGANIZADOR or ANO.match(nome) is not None
+
+
+def listar_arquivos(
+    pasta: Path, raiz: Path | None = None, ilegiveis: list[Path] | None = None
+) -> list[Path]:
+    """Os arquivos da raiz e das subpastas que o organizador cria.
 
     Pula ocultos, links simbólicos (o arquivo de verdade está em outro lugar),
-    arquivos de sistema e a pasta Duplicados/ da raiz (senão a segunda rodada
-    acharia as cópias que a primeira já separou).
+    arquivos de sistema, pastas do usuário e a Duplicados/ (senão a segunda
+    rodada acharia as cópias que a primeira já separou). Uma pasta que não
+    abre é anotada em ilegiveis e pulada.
     """
     raiz = raiz or pasta
     arquivos = []
-    for item in sorted(pasta.iterdir()):
+    try:
+        itens = sorted(pasta.iterdir())
+    except OSError:
+        if ilegiveis is not None:
+            ilegiveis.append(pasta)
+        return []
+    for item in itens:
         if item.name.startswith(".") or item.is_symlink():
             continue
         if item.is_dir():
-            if pasta == raiz and item.name == PASTA_DUPLICADOS:
+            if pasta == raiz and not entra_na_busca(item):
                 continue
-            arquivos.extend(listar_arquivos(item, raiz))
+            arquivos.extend(listar_arquivos(item, raiz, ilegiveis))
         elif item.is_file() and item.name.lower() not in IGNORADOS:
             arquivos.append(item)
     return arquivos
@@ -103,9 +130,17 @@ def encontrar_duplicados(pasta: Path, ilegiveis: list[Path] | None = None) -> li
     permissão) fica de fora em vez de parar a busca; se a lista ilegiveis
     for passada, ele é anotado nela.
     """
+    def anotar(arquivo: Path) -> None:
+        if ilegiveis is not None:
+            ilegiveis.append(arquivo)
+
     por_tamanho: dict[int, list[Path]] = {}
-    for arquivo in listar_arquivos(pasta):
-        tamanho = arquivo.stat().st_size
+    for arquivo in listar_arquivos(pasta, ilegiveis=ilegiveis):
+        try:  # um download terminando pode renomear o arquivo durante a busca
+            tamanho = arquivo.stat().st_size
+        except OSError:
+            anotar(arquivo)
+            continue
         if tamanho > 0:  # vazios seriam todos "iguais" entre si
             por_tamanho.setdefault(tamanho, []).append(arquivo)
 
@@ -118,14 +153,16 @@ def encontrar_duplicados(pasta: Path, ilegiveis: list[Path] | None = None) -> li
             try:
                 hash_ = hash_do_arquivo(arquivo)
             except OSError:
-                if ilegiveis is not None:
-                    ilegiveis.append(arquivo)
+                anotar(arquivo)
                 continue
             por_hash.setdefault(hash_, []).append(arquivo)
         for iguais in por_hash.values():
             if len(iguais) < 2:
                 continue
-            fica = escolher_quem_fica(iguais)
+            try:
+                fica = escolher_quem_fica(iguais)
+            except OSError:  # algum deles sumiu depois do hash
+                continue
             copias = [a for a in iguais if a != fica]
             grupos.append(GrupoDeDuplicados(tamanho=tamanho, fica=fica, copias=copias))
     return sorted(grupos, key=lambda g: g.fica.as_posix())

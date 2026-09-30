@@ -194,8 +194,13 @@ def desfazer(pasta: Path, simular: bool = False) -> Desfeito | None:
             resultado.pulados.append((movimento, motivo))
             continue
         if not simular:
-            movimento.origem.parent.mkdir(parents=True, exist_ok=True)
-            movimento.destino.rename(movimento.origem)
+            try:
+                movimento.origem.parent.mkdir(parents=True, exist_ok=True)
+                movimento.destino.rename(movimento.origem)
+            except OSError as erro:  # ex.: aberto em outro programa no Windows
+                motivo = f"não foi possível mover: {erro.strerror or erro}; está aberto em outro programa?"
+                resultado.pulados.append((movimento, motivo))
+                continue
         resultado.voltaram.append(movimento)
 
     if simular:
