@@ -1,8 +1,8 @@
-# Organizador de Arquivos
+# Tidy
 
 [![Testes](https://github.com/Lakes777/organizador-arquivos/actions/workflows/testes.yml/badge.svg)](https://github.com/Lakes777/organizador-arquivos/actions/workflows/testes.yml)
 
-Ferramenta de linha de comando que organiza pastas bagunçadas, como a de Downloads, separando os arquivos em subpastas **por tipo** (Imagens, Documentos, Instaladores...) ou **por data** (2026/09). Feita em Python puro.
+**Tidy · organizador de arquivos.** Ferramenta de linha de comando que organiza pastas bagunçadas, como a de Downloads, separando os arquivos em subpastas **por tipo** (Imagens, Documentos, Instaladores...) ou **por data** (2026/09). Feita em Python puro.
 
 ![Demonstração do organizador](docs/demo.gif)
 

@@ -161,7 +161,7 @@ def separar_duplicados(pasta: Path, simular_apenas: bool) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="organizador",
-        description="Separa os arquivos de uma pasta em subpastas por tipo ou por data.",
+        description="Tidy · organizador de arquivos. Separa os arquivos de uma pasta em subpastas por tipo ou por data.",
     )
     parser.add_argument("pasta", type=pasta_existente, help="ex.: ~/Downloads")
     parser.add_argument(

@@ -239,3 +239,12 @@ def test_desfazer_pula_arquivo_em_uso(tmp_path, monkeypatch, capsys):
     saida = capsys.readouterr().out
     assert "PULADO: Documentos/b.pdf (não foi possível mover" in saida
     assert (tmp_path / "a.jpg").exists() and (tmp_path / "Documentos" / "b.pdf").exists()
+
+
+def test_ajuda_mostra_o_nome_tidy(monkeypatch, capsys):
+    import pytest
+
+    monkeypatch.setattr(sys, "argv", ["organizador", "--help"])
+    with pytest.raises(SystemExit):
+        main()
+    assert "Tidy" in capsys.readouterr().out
