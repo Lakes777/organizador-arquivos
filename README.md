@@ -4,7 +4,7 @@
 
 **Tidy · organizador de arquivos.** Ferramenta de linha de comando que organiza pastas bagunçadas, como a de Downloads, separando os arquivos em subpastas **por tipo** (Imagens, Documentos, Instaladores...) ou **por data** (2026/09). Feita em Python puro.
 
-![Demonstração do organizador](docs/demo.gif)
+![Demonstração do Tidy no terminal: simular, organizar por tipo e por data](docs/demo.gif)
 
 ## Funcionalidades
 
